@@ -21,7 +21,6 @@ open FSharp.Data
 open Newtonsoft.Json
 
 
-
 // --------------------------------------------------------------------------------------
 // Data we store about CSV files
 // --------------------------------------------------------------------------------------
@@ -106,7 +105,7 @@ let writeMetadata (files:CsvFile[]) =
 
 open Gallery.CsvService.Pivot
 
-type ParsedFile = (string * string)[] * (string * Value)[][]
+type ParsedFile = (string * string)[] * (string * obj)[][]
 
 type Message = 
   | UploadFile of string * AsyncReplyChannel<CsvFile>
