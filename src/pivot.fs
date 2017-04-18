@@ -220,9 +220,9 @@ let readCsvFile (data:string) =
       Seq.zip meta row.Columns 
       |> Seq.map (fun ((col, isNum), value) -> 
         if isNum then 
-          try col, box (Value.Number(Decimal.Parse value))
+          try col, Value.Number(Decimal.Parse value)
           with _ -> parseError (sprintf "Column '%s' was inferred as numeric, but contians non-numeric value '%s'." col value)
-        else col, box (Value.String(value)))
+        else col, Value.String(value))
       |> Array.ofSeq )
     |> Array.ofSeq
 
@@ -259,7 +259,7 @@ let applyAction isPreview meta objs = function
       objs |> Array.map (pickField fld) |> Array.distinct |> Array.map serializeValue |> JsonValue.Array
 
 let handleRequest meta source query = 
-  let source = source |> Seq.map (Array.map (fun (c,v) -> c, unbox<Value> v))
+  let source = source |> Seq.ofArray
   let preview, query = query |> List.partition ((=) "preview")
   let isPreview = not (List.isEmpty preview)
   let query = query |> List.head |> Transform.fromUrl

@@ -90,7 +90,7 @@ let writeMetadata (files:CsvFile[]) =
 
 open Gallery.CsvService.Pivot
 
-type ParsedFile = (string * string)[] * (string * obj)[][]
+type ParsedFile = (string * string)[] * (string * Value)[][]
 
 type Message = 
   | UploadFile of string * AsyncReplyChannel<CsvFile>
