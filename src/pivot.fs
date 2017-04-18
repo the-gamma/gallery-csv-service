@@ -196,9 +196,15 @@ exception ParseError of string
 let parseError s = raise (ParseError s)
 let isNumeric (s:string) = Decimal.TryParse(s) |> fst
 
-let readCsvFile (data:string) = 
+let readCsvFile (data:string) =   
   if String.IsNullOrWhiteSpace data then parseError "The specified input was empty."
-  let file = try CsvFile.Parse(data) with _ -> parseError "Failed to parse data as a CSV file."
+  let firstNewLine = data.IndexOfAny [|'\n'; '\r' |]
+  let firstLine = if firstNewLine > 0 then data.Substring(0, firstNewLine) else data
+  let separators = 
+    if firstLine.Contains("\t") then "\t"
+    elif firstLine.Contains(";") then ";"
+    else ","
+  let file = try CsvFile.Parse(data,separators) with _ -> parseError "Failed to parse data as a CSV file."
   if Seq.isEmpty file.Rows then parseError "The specified CSV file contains no data."
   let meta = 
     file.Rows 
