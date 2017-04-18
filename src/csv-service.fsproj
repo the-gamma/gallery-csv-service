@@ -59,9 +59,12 @@
   </Target>
   -->
   <ItemGroup>
-    <None Include="paket.references" />
+    <Compile Include="common/serializer.fs" />
     <Compile Include="pivot.fs" />
+    <Compile Include="listing.fs" />
+    <Compile Include="storage.fs" />
     <Compile Include="app.fsx" />
+    <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
