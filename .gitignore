@@ -5,3 +5,5 @@ packages
 obj
 .fake/
 src/config.fs
+*.bak
+*.TMP

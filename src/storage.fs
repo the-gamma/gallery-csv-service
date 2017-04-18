@@ -29,11 +29,11 @@ type CsvFile =
 
 #if INTERACTIVE
 let createCloudBlobClient() = 
-  let account = CloudStorageAccount.Parse(Config.TheGammaSnippetsStorage)
+  let account = CloudStorageAccount.Parse(Config.TheGammaGalleryCsvStorage)
   account.CreateCloudBlobClient()
 #else
 let createCloudBlobClient() = 
-  let account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("CUSTOMCONNSTR_THEGAMMASNIPS_STORAGE"))
+  let account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("CUSTOMCONNSTR_THEGAMMACSV_STORAGE"))
   account.CreateCloudBlobClient()
 #endif
 
