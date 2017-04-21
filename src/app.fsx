@@ -21,6 +21,12 @@ open Gallery.CsvService
 // Server with /upload endpoint and /csv for Pivot type provider
 // --------------------------------------------------------------------------------------
 
+#if INTERACTIVE
+let root = "https://localhost:8897"
+#else
+let root = "https://gallery-csv-service.azurewebsites.net"
+#endif
+
 let app =
   choose [
     GET >=> path "/" >=> Successful.OK "Service is running..." 
@@ -40,7 +46,6 @@ let app =
     >=> choose [
       OPTIONS >=> Successful.OK "CORS approved"
       GET >=> pathScan "/providers/listing%s" (fun _ ctx -> async { 
-        let root =  ctx.request.url.Scheme + "://" + ctx.request.url.Authority
         let! files = Storage.getRecords ()
         return! Listing.handleRequest root files ctx })
       GET >=> pathScan "/providers/csv/%s" (fun source ctx -> async {
