@@ -39,9 +39,10 @@ let app =
     >=> setHeader "Access-Control-Allow-Headers" "content-type"
     >=> choose [
       OPTIONS >=> Successful.OK "CORS approved"
-      GET >=> pathScan "/providers/listing%s" (fun _ ctx -> async {
+      GET >=> pathScan "/providers/listing%s" (fun _ ctx -> async { 
+        let root =  ctx.request.url.Scheme + "://" + ctx.request.url.Authority
         let! files = Storage.getRecords ()
-        return! Listing.handleRequest files ctx })
+        return! Listing.handleRequest root files ctx })
       GET >=> pathScan "/providers/csv/%s" (fun source ctx -> async {
         let! file = Storage.fetchFile source
         match file with 
@@ -58,8 +59,7 @@ match System.Environment.GetCommandLineArgs() |> Seq.tryPick (fun s ->
     let serverConfig =
       { Web.defaultConfig with
           maxContentLength = 1024 * 1024 * 50
-          logger = Logging.Loggers.saneDefaultsFor Logging.LogLevel.Debug
-          bindings = [ HttpBinding.mkSimple HTTP "127.0.0.1" port ] }
+          bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" port ] }
     Web.startWebServer serverConfig app
 | _ -> ()
 

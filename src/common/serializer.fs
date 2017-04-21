@@ -17,6 +17,7 @@ type Type =
 
 type Result = 
   | Primitive of typ:Type * endpoint:string
+  | Provider of kind:string * endpoint:string
   | Nested of endpoint:string
 
 type Member = 
@@ -50,6 +51,11 @@ module Serializer =
         |> JsonValue.Record
     | Result.Nested(e) -> 
         [| "kind", JsonValue.String "nested"
+           "endpoint", JsonValue.String e |]
+        |> JsonValue.Record
+    | Result.Provider(kind, e) -> 
+        [| "kind", JsonValue.String "provider"
+           "provider", JsonValue.String kind
            "endpoint", JsonValue.String e |]
         |> JsonValue.Record
 

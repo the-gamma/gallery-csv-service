@@ -55,8 +55,7 @@ let getLocalServerConfig port =
   { defaultConfig with
       maxContentLength = 1024 * 1024 * 50
       homeFolder = Some __SOURCE_DIRECTORY__
-      logger = Logging.Loggers.saneDefaultsFor Logging.LogLevel.Debug
-      bindings = [ HttpBinding.mkSimple HTTP  "127.0.0.1" port ] }
+      bindings = [ HttpBinding.createSimple HTTP  "127.0.0.1" port ] }
 
 let mutable currentApp : WebPart = Successful.OK "Loading..."
 
