@@ -49,14 +49,16 @@ let fromJson<'R> str : 'R =
   use tr = new System.IO.StringReader(str)
   serializer.Deserialize(tr, typeof<'R>) :?> 'R
 
-let uploadCsv count data =
+let generateId (date:System.DateTime) i = 
+  sprintf "%s/file_%d.csv" (date.ToString("yyyy-MM-dd")) i
+
+let uploadCsv id data =
   let container = createCloudBlobClient().GetContainerReference("uploads")
   if container.Exists() then
-    let name = sprintf "%s/file_%d.csv" (System.DateTime.Now.ToString("yyyy-MM-dd")) count
-    let blob = container.GetBlockBlobReference(name)
+    let blob = container.GetBlockBlobReference(id)
     if blob.Exists() then blob.Delete() // failwithf "Blob '%s' already exists!" name
     blob.UploadText(data, System.Text.Encoding.UTF8) 
-    CsvFile.Create(name)
+    CsvFile.Create(id)
   else failwith "Container 'uploads' not found"
 
 let downloadCsv csv =
@@ -119,8 +121,8 @@ let cache = MailboxProcessor.Start(fun inbox ->
             writeMetadata (Array.ofSeq files.Values)
 
       | Some(UploadFile(data, repl)) ->
-          let count = files.Values |> Seq.filter (fun f -> f.date.Date = DateTime.Today) |> Seq.length
-          let csv = uploadCsv count data
+          let id = Seq.initInfinite (generateId DateTime.Today) |> Seq.filter (files.ContainsKey >> not) |> Seq.head
+          let csv = uploadCsv id data
           files.Add(csv.id, csv)
           writeMetadata (Array.ofSeq files.Values)
           repl.Reply(csv)
