@@ -26,6 +26,15 @@ let app =
     GET >=> path "/" >=> Successful.OK "Service is running..." 
     POST >=> path "/update" >=> Storage.updateRecord
     POST >=> path "/upload" >=> Storage.uploadFile
+    GET >=> path "/tags" >=> request (fun _ ctx -> async {
+        let! files = Storage.getRecords ()
+        let tags = 
+          files 
+          |> Seq.collect (fun f -> f.tags) 
+          |> Seq.map (fun t -> JsonValue.Array [| JsonValue.String (Listing.getTagId t); JsonValue.String t |])
+          |> Array.ofSeq
+          |> JsonValue.Array
+        return! Successful.OK (tags.ToString()) ctx })
     setHeader  "Access-Control-Allow-Origin" "*"
     >=> setHeader "Access-Control-Allow-Headers" "content-type"
     >=> choose [
