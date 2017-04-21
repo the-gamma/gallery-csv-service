@@ -37,6 +37,7 @@ let app =
         let tags = 
           files 
           |> Seq.collect (fun f -> f.tags) 
+          |> Seq.distinct
           |> Seq.map (fun t -> JsonValue.Array [| JsonValue.String (Listing.getTagId t); JsonValue.String t |])
           |> Array.ofSeq
           |> JsonValue.Array
