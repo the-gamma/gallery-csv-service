@@ -119,7 +119,7 @@ let cache = MailboxProcessor.Start(fun inbox ->
             writeMetadata (Array.ofSeq files.Values)
 
       | Some(UploadFile(data, repl)) ->
-          let count = files.Values |> Seq.filter (fun f -> f.date = DateTime.Today) |> Seq.length
+          let count = files.Values |> Seq.filter (fun f -> f.date.Date = DateTime.Today) |> Seq.length
           let csv = uploadCsv count data
           files.Add(csv.id, csv)
           writeMetadata (Array.ofSeq files.Values)
