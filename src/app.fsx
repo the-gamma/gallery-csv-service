@@ -57,6 +57,7 @@ match System.Environment.GetCommandLineArgs() |> Seq.tryPick (fun s ->
 | Some port ->
     let serverConfig =
       { Web.defaultConfig with
+          maxContentLength = 1024 * 1024 * 50
           logger = Logging.Loggers.saneDefaultsFor Logging.LogLevel.Debug
           bindings = [ HttpBinding.mkSimple HTTP "127.0.0.1" port ] }
     Web.startWebServer serverConfig app
