@@ -61,6 +61,7 @@ module Transform =
       "concat-vals", ConcatValues; "sum", Sum; "mean", Mean ]
 
   let trimIdent (s:string) = 
+    printfn "TRIM: >>%s<<" s
     if s.StartsWith("'") && s.EndsWith("'") then s.Substring(1, s.Length-2)
     else s
 
@@ -84,8 +85,8 @@ module Transform =
     let cond = cond.Trim()
     let start = if cond.StartsWith("'") then cond.IndexOf('\'', 1) else 0
     let neq, eq = cond.IndexOf(" neq ", start), cond.IndexOf(" eq ", start)
-    if neq <> -1 then trimIdent (cond.Substring(0, neq)), false, cond.Substring(neq + 5)
-    elif eq <> -1 then trimIdent (cond.Substring(0, eq)), true, cond.Substring(eq + 4)
+    if neq <> -1 then trimIdent (cond.Substring(0, neq)), false, trimIdent (cond.Substring(neq + 5))
+    elif eq <> -1 then trimIdent (cond.Substring(0, eq)), true, trimIdent (cond.Substring(eq + 4))
     else failwith "Incorrectly formatted condition"
 
   let parseTransform (op, args) = 
