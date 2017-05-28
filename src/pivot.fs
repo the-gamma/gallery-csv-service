@@ -9,17 +9,28 @@ open Suave
 // ------------------------------------------------------------------------------------------------
 
 type Value = 
+  | Bool of bool
   | String of string
   | Number of decimal
+  | Date of DateTimeOffset
 
-type Aggregation = 
+[<RequireQualifiedAccess>]
+type GroupAggregation = 
   | GroupKey
   | CountAll
   | CountDistinct of string
-  | ReturnUnique of string
   | ConcatValues of string
   | Sum of string
   | Mean of string
+
+[<RequireQualifiedAccess>]
+type WindowAggregation = 
+  | Min of string
+  | Max of string
+  | Mean of string
+  | FirstKey
+  | LastKey
+  | MiddleKey
 
 type SortDirection =
   | Ascending
@@ -44,7 +55,8 @@ type FilterCondition = RelationalOperator * string * string
 type Transformation = 
   | DropColumns of string list
   | SortBy of (string * SortDirection) list
-  | GroupBy of string list * Aggregation list
+  | GroupBy of string list * GroupAggregation list
+  | WindowBy of string * int * WindowAggregation list
   | FilterBy of FilterOperator * FilterCondition list
   | Paging of Paging list
   | Empty
@@ -66,20 +78,28 @@ type Query =
 
 module Transform = 
 
-  let ops = 
-    [ "count-dist", CountDistinct; "unique", ReturnUnique; 
-      "concat-vals", ConcatValues; "sum", Sum; "mean", Mean ]
+  let groupUnaryOps = 
+    [ "count-dist", GroupAggregation.CountDistinct; "mean", GroupAggregation.Mean
+      "concat-vals", GroupAggregation.ConcatValues; "sum", GroupAggregation.Sum ]
+  let groupNullaryOps =
+    [ "key", GroupAggregation.GroupKey; "count-all", GroupAggregation.CountAll ]
+
+  let winUnaryOps = 
+    [ "mean", WindowAggregation.Mean; 
+      "min", WindowAggregation.Min; "max", WindowAggregation.Max ]
+  let winNullaryOps = 
+    [ "first-key", WindowAggregation.FirstKey; "last-key", WindowAggregation.LastKey
+      "mid-key", WindowAggregation.MiddleKey ]
 
   let trimIdent (s:string) = 
-    printfn "TRIM: >>%s<<" s
     if s.StartsWith("'") && s.EndsWith("'") then s.Substring(1, s.Length-2)
     else s
 
-  let parseAggOp op =
-    if op = "key" then GroupKey
-    elif op = "count-all" then CountAll
-    else
-      let parsed = ops |> List.tryPick (fun (k, f) ->
+  let parseOp nullary unary (op:string) =
+    match nullary |> List.tryFind (fun (k, f) -> k = op) with
+    | Some(_, op) -> op
+    | _ ->
+      let parsed = unary |> List.tryPick (fun (k, f) ->
         if op.StartsWith(k) then Some(f(trimIdent(op.Substring(k.Length + 1))))
         else None)
       if parsed.IsSome then parsed.Value else failwith "Unknonw operation"
@@ -118,8 +138,12 @@ module Transform =
     | "filter", conds -> FilterBy(And, List.map parseCondition conds)
     | "groupby", ops ->
         let keys = ops |> List.takeWhile (fun s -> s.StartsWith "by ") |> List.map (fun s -> trimIdent (s.Substring(3)))
-        let aggs = ops |> List.skipWhile (fun s -> s.StartsWith "by ") |> List.map parseAggOp
+        let aggs = ops |> List.skipWhile (fun s -> s.StartsWith "by ") |> List.map (parseOp groupNullaryOps groupUnaryOps)
         GroupBy(keys, aggs)
+    | "windowby", key::size::ops ->
+        let key = trimIdent (key.Substring(3))
+        let aggs = ops |> List.skipWhile (fun s -> s.StartsWith "by ") |> List.map (parseOp winNullaryOps winUnaryOps)
+        WindowBy(key, int size, aggs)
     | "take", [n] -> Paging [Take (int n)]
     | "skip", [n] -> Paging [Skip (int n)]
     | _ -> failwith "Unsupported transformation"
@@ -158,18 +182,27 @@ module Transform =
 let inline pickField name obj = 
   Array.pick (fun (n, v) -> if n = name then Some v else None) obj
 
-let inline the s = match List.ofSeq s with [v] -> v | _ -> failwith "Not unique"
-let asString = function String s -> s | Number n -> string n
-let asDecimal = function String s -> decimal s | Number n -> n
+let asString = function String s -> s | Number n -> string n | Date d -> d.ToString("g") | Bool b -> string b
+let asDecimal = function String s -> decimal s | Number n -> n | Date d -> decimal d.Ticks | Bool true -> 1M | Bool false -> 0M
 
-let applyAggregation kvals group = function
- | GroupKey -> kvals
- | CountAll -> [ "count", Number(group |> Seq.length |> decimal) ]
- | CountDistinct(fld) -> [ fld, Number(group |> Seq.distinctBy (pickField fld) |> Seq.length |> decimal) ]
- | ReturnUnique(fld) -> [ fld, group |> Seq.map (pickField fld) |> the ]
- | ConcatValues(fld) -> [ fld, group |> Seq.map(fun obj -> pickField fld obj |> asString) |> Seq.distinct |> String.concat ", " |> String ]
- | Sum(fld) -> [ fld, group |> Seq.sumBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
- | Mean(fld) -> [ fld, group |> Seq.averageBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
+let applyGroupAggregation kvals group = function
+ | GroupAggregation.GroupKey -> kvals
+ | GroupAggregation.CountAll -> [ "count", Number(group |> Seq.length |> decimal) ]
+ | GroupAggregation.CountDistinct(fld) -> [ fld, Number(group |> Seq.distinctBy (pickField fld) |> Seq.length |> decimal) ]
+ | GroupAggregation.ConcatValues(fld) -> [ fld, group |> Seq.map(fun obj -> pickField fld obj |> asString) |> Seq.distinct |> String.concat ", " |> String ]
+ | GroupAggregation.Sum(fld) -> [ fld, group |> Seq.sumBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
+ | GroupAggregation.Mean(fld) -> [ fld, group |> Seq.averageBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
+
+let applyWinAggregation kname group agg = 
+  let nums fld = group |> Seq.map (fun obj -> pickField fld obj |> asDecimal)
+  let kvalues = Seq.map (pickField kname) group |> Array.ofSeq
+  match agg with
+  | WindowAggregation.Mean(fld) -> [ fld, nums fld |> Seq.average |> Number ]
+  | WindowAggregation.Min(fld) -> [ fld, nums fld |> Seq.min |> Number ]
+  | WindowAggregation.Max(fld) -> [ fld, nums fld |> Seq.max |> Number ]
+  | WindowAggregation.FirstKey -> [ "first " + kname, kvalues.[0] ]
+  | WindowAggregation.LastKey -> [ "last " + kname, kvalues.[kvalues.Length-1] ]
+  | WindowAggregation.MiddleKey -> [ "middle " + kname, kvalues.[(kvalues.Length-1)/2] ]
 
 let compareFields o1 o2 (fld, order) = 
   let reverse = if order = Descending then -1 else 1
@@ -178,15 +211,18 @@ let compareFields o1 o2 (fld, order) =
   | String s1, String s2 -> reverse * compare s1 s2
   | _ -> failwith "Cannot compare values"
 
-let evalCondition op actual expected =
+let evalCondition op actual (expected:string) =
   match op, actual with 
+  | _, Date _ -> failwith "Comparison on dates not supported"
+  | Equals, Bool b -> (expected.ToLower() = "true" && b) || (expected.ToLower() = "false" && not b)
+  | NotEquals, Bool b -> (expected.ToLower() = "true" && not b) || (expected.ToLower() = "false" && b)
   | Equals, String s -> expected = s
   | NotEquals, String s -> expected <> s
-  | (Equals | NotEquals), Number _ -> failwith "Equals and not equals work only on strings"
+  | (Equals | NotEquals), Number _ -> failwith "Equals and not equals work only on strings or booleans"
   | GreaterThan, Number n -> n > decimal expected
   | LessThan, Number n -> n < decimal expected
   | InRange, Number n -> let expected = expected.Split(',') in n > decimal expected.[0] && n < decimal expected.[1]
-  | (GreaterThan | LessThan | InRange), String _ -> failwith "Relational operator work only on numbers"
+  | (GreaterThan | LessThan | InRange), (Bool _ | String _) -> failwith "Relational operator work only on numbers"
 
 let transformData (objs:seq<(string * Value)[]>) = function
   | Empty -> objs
@@ -207,14 +243,23 @@ let transformData (objs:seq<(string * Value)[]>) = function
       objs |> Seq.filter (fun o ->
         let f = match op with And -> Seq.forall | Or -> Seq.exists
         conds |> f (fun (op, fld, value) -> evalCondition op (pickField fld o) value))
+  | WindowBy(fld, size, aggs) ->
+      let aggs = List.rev aggs
+      objs 
+      |> Seq.sortBy (pickField fld)
+      |> Seq.windowed size 
+      |> Seq.map (fun win ->
+        aggs
+        |> List.collect (applyWinAggregation fld win)
+        |> Array.ofSeq )
   | GroupBy(flds, aggs) ->
       let aggs = List.rev aggs
       objs 
       |> Seq.groupBy (fun j -> List.map (fun f -> pickField f j) flds)
       |> Seq.map (fun (kvals, group) ->
         aggs 
-        |> List.collect (applyAggregation (List.zip flds kvals) group)
-        |> Array.ofSeq)
+        |> List.collect (applyGroupAggregation (List.zip flds kvals) group)
+        |> Array.ofSeq )
 
 // ----------------------------------------------------------------------------
 // Schema inference and CSV file parsing
@@ -223,7 +268,44 @@ let transformData (objs:seq<(string * Value)[]>) = function
 exception ParseError of string
 
 let parseError s = raise (ParseError s)
-let isNumeric (s:string) = Decimal.TryParse(s) |> fst
+
+type InferredType =   
+  | Any | String | Number 
+  | OneZero | Bool 
+  | Date of System.Globalization.CultureInfo
+
+let tryDate culture s = 
+  DateTimeOffset.TryParse(s, culture, Globalization.DateTimeStyles.AssumeUniversal) |> fst
+
+let mmdd = System.Globalization.CultureInfo.InvariantCulture 
+let ddmm = System.Globalization.CultureInfo.GetCultureInfo("en-GB")
+
+let inferType (s:string) =
+  if fst (Decimal.TryParse(s)) then 
+    let d = Decimal.Parse(s)
+    if d = 1M || d = 0M then OneZero
+    else Number
+  elif tryDate mmdd s && tryDate ddmm s then Date null
+  elif tryDate mmdd s then Date mmdd
+  elif tryDate ddmm s then Date ddmm
+  elif s.ToLower() = "true" || s.ToLower() = "false" then Bool
+  else String
+
+let typeName = function
+  | String | Any -> "string"
+  | OneZero | Bool -> "bool"
+  | Date _ -> "date"
+  | Number -> "number"
+
+let unifyTypes t1 t2 = 
+  match t1, t2 with
+  | Any, t | t, Any -> t
+  | Date c, Date null | Date null, Date c -> Date c
+  | Date c1, Date c2 when c1 = c2 -> Date c1
+  | Number, Number -> Number
+  | Bool, OneZero | OneZero, Bool -> Bool
+  | Number, OneZero | OneZero, Number -> Number
+  | _ -> String
 
 let readCsvFile (data:string) =   
   if String.IsNullOrWhiteSpace data then parseError "The specified input was empty."
@@ -235,11 +317,13 @@ let readCsvFile (data:string) =
     else ","
   let file = try CsvFile.Parse(data,separators) with _ -> parseError "Failed to parse data as a CSV file."
   if Seq.isEmpty file.Rows then parseError "The specified CSV file contains no data."
+
   let meta = 
     file.Rows 
-    |> Seq.truncate 20
-    |> Seq.map (fun r -> Array.map isNumeric r.Columns)
-    |> Seq.reduce (Array.map2 (&&))
+    |> Seq.truncate 100
+    |> Seq.map (fun r -> Array.map inferType r.Columns)
+    |> fun x -> printfn "%A" x; x
+    |> Seq.reduce (Array.map2 unifyTypes)
     |> Seq.zip file.Headers.Value
     |> Array.ofSeq
   
@@ -247,22 +331,38 @@ let readCsvFile (data:string) =
     file.Rows
     |> Seq.map (fun row -> 
       Seq.zip meta row.Columns 
-      |> Seq.map (fun ((col, isNum), value) -> 
-        if isNum then 
-          try col, Value.Number(Decimal.Parse value)
-          with _ -> parseError (sprintf "Column '%s' was inferred as numeric, but contians non-numeric value '%s'." col value)
-        else col, Value.String(value))
+      |> Seq.map (fun ((col, typ), value) -> 
+        try 
+          match typ with 
+          | Number -> col, Value.Number(Decimal.Parse value)
+          | Date null -> col, Value.Date(DateTimeOffset.Parse(value, ddmm))
+          | Date c -> col, Value.Date(DateTimeOffset.Parse(value, c))
+          | OneZero | Bool -> 
+              let b = 
+                if value.ToLower() = "true" then true
+                elif value.ToLower() = "false" then false
+                else 
+                  let d = Decimal.Parse(value)
+                  if d = 1M then true elif d = 0M then false
+                  else failwithf "%s is not a boolean" value
+              col, Value.Bool b
+          | Any | String -> col, Value.String(value)
+        with _ -> parseError (sprintf "Column '%s' was inferred as %s, but contians non-numeric value '%s'." col (typeName typ) value) )
       |> Array.ofSeq )
     |> Array.ofSeq
 
-  meta |> Seq.map (fun (n, num) -> n, if num then "number" else "string") |> Array.ofSeq,
+  meta |> Seq.map (fun (n, ty) -> n, typeName ty) |> Array.ofSeq,
   data
 
 // ----------------------------------------------------------------------------
 // Pivot service
 // ----------------------------------------------------------------------------
 
-let serializeValue = function String s -> JsonValue.String s | Number n -> JsonValue.Number n
+let serializeValue = function 
+  | Value.String s -> JsonValue.String s 
+  | Value.Bool b -> JsonValue.Boolean b
+  | Value.Number n -> JsonValue.Number n
+  | Value.Date d -> JsonValue.String (d.ToString "o")
 
 let serialize isPreview isSeries data = 
   let data = if isPreview then Array.truncate 10 data else data
