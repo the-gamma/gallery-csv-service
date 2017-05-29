@@ -244,7 +244,6 @@ let transformData (objs:seq<(string * Value)[]>) = function
         let f = match op with And -> Seq.forall | Or -> Seq.exists
         conds |> f (fun (op, fld, value) -> evalCondition op (pickField fld o) value))
   | WindowBy(fld, size, aggs) ->
-      let aggs = List.rev aggs
       objs 
       |> Seq.sortBy (pickField fld)
       |> Seq.windowed size 
@@ -253,7 +252,6 @@ let transformData (objs:seq<(string * Value)[]>) = function
         |> List.collect (applyWinAggregation fld win)
         |> Array.ofSeq )
   | GroupBy(flds, aggs) ->
-      let aggs = List.rev aggs
       objs 
       |> Seq.groupBy (fun j -> List.map (fun f -> pickField f j) flds)
       |> Seq.map (fun (kvals, group) ->
@@ -322,7 +320,6 @@ let readCsvFile (data:string) =
     file.Rows 
     |> Seq.truncate 100
     |> Seq.map (fun r -> Array.map inferType r.Columns)
-    |> fun x -> printfn "%A" x; x
     |> Seq.reduce (Array.map2 unifyTypes)
     |> Seq.zip file.Headers.Value
     |> Array.ofSeq
