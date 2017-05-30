@@ -209,6 +209,7 @@ let compareFields o1 o2 (fld, order) =
   match pickField fld o1, pickField fld o2 with
   | Number d1, Number d2 -> reverse * compare d1 d2
   | String s1, String s2 -> reverse * compare s1 s2
+  | Date d1, Date d2 -> reverse * compare d1 d2
   | _ -> failwith "Cannot compare values"
 
 let evalCondition op actual (expected:string) =
