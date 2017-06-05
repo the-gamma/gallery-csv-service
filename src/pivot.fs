@@ -28,6 +28,7 @@ type WindowAggregation =
   | Min of string
   | Max of string
   | Mean of string
+  | Sum of string
   | FirstKey
   | LastKey
   | MiddleKey
@@ -57,6 +58,7 @@ type Transformation =
   | SortBy of (string * SortDirection) list
   | GroupBy of string list * GroupAggregation list
   | WindowBy of string * int * WindowAggregation list
+  | ExpandBy of string * WindowAggregation list
   | FilterBy of FilterOperator * FilterCondition list
   | Paging of Paging list
   | Empty
@@ -85,7 +87,7 @@ module Transform =
     [ "key", GroupAggregation.GroupKey; "count-all", GroupAggregation.CountAll ]
 
   let winUnaryOps = 
-    [ "mean", WindowAggregation.Mean; 
+    [ "mean", WindowAggregation.Mean; "sum", WindowAggregation.Sum
       "min", WindowAggregation.Min; "max", WindowAggregation.Max ]
   let winNullaryOps = 
     [ "first-key", WindowAggregation.FirstKey; "last-key", WindowAggregation.LastKey
@@ -142,8 +144,12 @@ module Transform =
         GroupBy(keys, aggs)
     | "windowby", key::size::ops ->
         let key = trimIdent (key.Substring(3))
-        let aggs = ops |> List.skipWhile (fun s -> s.StartsWith "by ") |> List.map (parseOp winNullaryOps winUnaryOps)
+        let aggs = ops |> List.map (parseOp winNullaryOps winUnaryOps)
         WindowBy(key, int size, aggs)
+    | "expandby", key::ops ->
+        let key = trimIdent (key.Substring(3))
+        let aggs = ops |> List.map (parseOp winNullaryOps winUnaryOps)
+        ExpandBy(key, aggs)
     | "take", [n] -> Paging [Take (int n)]
     | "skip", [n] -> Paging [Skip (int n)]
     | _ -> failwith "Unsupported transformation"
@@ -200,9 +206,35 @@ let applyWinAggregation kname group agg =
   | WindowAggregation.Mean(fld) -> [ fld, nums fld |> Seq.average |> Number ]
   | WindowAggregation.Min(fld) -> [ fld, nums fld |> Seq.min |> Number ]
   | WindowAggregation.Max(fld) -> [ fld, nums fld |> Seq.max |> Number ]
+  | WindowAggregation.Sum(fld) -> [ fld, nums fld |> Seq.sum |> Number ]
   | WindowAggregation.FirstKey -> [ "first " + kname, kvalues.[0] ]
   | WindowAggregation.LastKey -> [ "last " + kname, kvalues.[kvalues.Length-1] ]
   | WindowAggregation.MiddleKey -> [ "middle " + kname, kvalues.[(kvalues.Length-1)/2] ]
+
+let getExpandAggregationFunction kname agg = 
+  let ret fld f = fun row -> fld, pickField fld row |> asDecimal |> f |> Number
+  match agg with
+  | WindowAggregation.Mean(fld) -> 
+      let mutable sum = 0M
+      let mutable count = 0M
+      ret fld (fun v -> sum <- sum + v; count <- count + v; sum / count)
+  | WindowAggregation.Min(fld) -> 
+      let mutable min = Decimal.MaxValue
+      ret fld (fun v -> (if v < min then min <- v); min)
+  | WindowAggregation.Max(fld) ->
+      let mutable max = Decimal.MinValue
+      ret fld (fun v -> (if v > max then max <- v); max)
+  | WindowAggregation.Sum(fld) -> 
+      let mutable sum = 0M
+      ret fld (fun v -> sum <- sum + v; sum)
+  | WindowAggregation.FirstKey -> 
+      let mutable first = None
+      fun row -> (if first.IsNone then first <- Some (pickField kname row)); "first " + kname, first.Value
+  | WindowAggregation.LastKey -> 
+      fun row -> "last " + kname, pickField kname row
+  | WindowAggregation.MiddleKey -> 
+      let keys = ResizeArray<_>()
+      fun row -> keys.Add(pickField kname row); "middle " + kname, keys.[keys.Count/2]
 
 let compareFields o1 o2 (fld, order) = 
   let reverse = if order = Descending then -1 else 1
@@ -252,6 +284,12 @@ let transformData (objs:seq<(string * Value)[]>) = function
         aggs
         |> List.collect (applyWinAggregation fld win)
         |> Array.ofSeq )
+  | ExpandBy(fld, aggs) ->
+      let funcs = aggs |> Seq.map (getExpandAggregationFunction fld) |> Array.ofSeq
+      objs 
+      |> Seq.sortBy (pickField fld)
+      |> Seq.map (fun row ->
+          funcs |> Array.map (fun f -> f row))
   | GroupBy(flds, aggs) ->
       objs 
       |> Seq.groupBy (fun j -> List.map (fun f -> pickField f j) flds)
