@@ -11,7 +11,7 @@ open Suave
 type Value = 
   | Bool of bool
   | String of string
-  | Number of decimal
+  | Number of float
   | Date of DateTimeOffset
 
 [<RequireQualifiedAccess>]
@@ -189,18 +189,18 @@ let inline pickField name obj =
   Array.pick (fun (n, v) -> if n = name then Some v else None) obj
 
 let asString = function String s -> s | Number n -> string n | Date d -> d.ToString("g") | Bool b -> string b
-let asDecimal = function String s -> decimal s | Number n -> n | Date d -> decimal d.Ticks | Bool true -> 1M | Bool false -> 0M
+let asFloat = function String s -> float s | Number n -> n | Date d -> float d.Ticks | Bool true -> 1. | Bool false -> 0.
 
 let applyGroupAggregation kvals group = function
  | GroupAggregation.GroupKey -> kvals
- | GroupAggregation.CountAll -> [ "count", Number(group |> Seq.length |> decimal) ]
- | GroupAggregation.CountDistinct(fld) -> [ fld, Number(group |> Seq.distinctBy (pickField fld) |> Seq.length |> decimal) ]
+ | GroupAggregation.CountAll -> [ "count", Number(group |> Seq.length |> float) ]
+ | GroupAggregation.CountDistinct(fld) -> [ fld, Number(group |> Seq.distinctBy (pickField fld) |> Seq.length |> float) ]
  | GroupAggregation.ConcatValues(fld) -> [ fld, group |> Seq.map(fun obj -> pickField fld obj |> asString) |> Seq.distinct |> String.concat ", " |> String ]
- | GroupAggregation.Sum(fld) -> [ fld, group |> Seq.sumBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
- | GroupAggregation.Mean(fld) -> [ fld, group |> Seq.averageBy (fun obj -> pickField fld obj |> asDecimal) |> Number ]
+ | GroupAggregation.Sum(fld) -> [ fld, group |> Seq.sumBy (fun obj -> pickField fld obj |> asFloat) |> Number ]
+ | GroupAggregation.Mean(fld) -> [ fld, group |> Seq.averageBy (fun obj -> pickField fld obj |> asFloat) |> Number ]
 
 let applyWinAggregation kname group agg = 
-  let nums fld = group |> Seq.map (fun obj -> pickField fld obj |> asDecimal)
+  let nums fld = group |> Seq.map (fun obj -> pickField fld obj |> asFloat)
   let kvalues = Seq.map (pickField kname) group |> Array.ofSeq
   match agg with
   | WindowAggregation.Mean(fld) -> [ fld, nums fld |> Seq.average |> Number ]
@@ -212,20 +212,20 @@ let applyWinAggregation kname group agg =
   | WindowAggregation.MiddleKey -> [ "middle " + kname, kvalues.[(kvalues.Length-1)/2] ]
 
 let getExpandAggregationFunction kname agg = 
-  let ret fld f = fun row -> fld, pickField fld row |> asDecimal |> f |> Number
+  let ret fld f = fun row -> fld, pickField fld row |> asFloat |> f |> Number
   match agg with
   | WindowAggregation.Mean(fld) -> 
-      let mutable sum = 0M
-      let mutable count = 0M
+      let mutable sum = 0.
+      let mutable count = 0.
       ret fld (fun v -> sum <- sum + v; count <- count + v; sum / count)
   | WindowAggregation.Min(fld) -> 
-      let mutable min = Decimal.MaxValue
+      let mutable min = Double.MaxValue
       ret fld (fun v -> (if v < min then min <- v); min)
   | WindowAggregation.Max(fld) ->
-      let mutable max = Decimal.MinValue
+      let mutable max = Double.MinValue
       ret fld (fun v -> (if v > max then max <- v); max)
   | WindowAggregation.Sum(fld) -> 
-      let mutable sum = 0M
+      let mutable sum = 0.
       ret fld (fun v -> sum <- sum + v; sum)
   | WindowAggregation.FirstKey -> 
       let mutable first = None
@@ -252,9 +252,9 @@ let evalCondition op actual (expected:string) =
   | Equals, String s -> expected = s
   | NotEquals, String s -> expected <> s
   | (Equals | NotEquals), Number _ -> failwith "Equals and not equals work only on strings or booleans"
-  | GreaterThan, Number n -> n > decimal expected
-  | LessThan, Number n -> n < decimal expected
-  | InRange, Number n -> let expected = expected.Split(',') in n > decimal expected.[0] && n < decimal expected.[1]
+  | GreaterThan, Number n -> n > float expected
+  | LessThan, Number n -> n < float expected
+  | InRange, Number n -> let expected = expected.Split(',') in n > float expected.[0] && n < float expected.[1]
   | (GreaterThan | LessThan | InRange), (Bool _ | String _) -> failwith "Relational operator work only on numbers"
 
 let transformData (objs:seq<(string * Value)[]>) = function
@@ -370,7 +370,7 @@ let readCsvFile (data:string) =
       |> Seq.map (fun ((col, typ), value) -> 
         try 
           match typ with 
-          | Number -> col, Value.Number(Decimal.Parse value)
+          | Number -> col, Value.Number(Double.Parse value)
           | Date null -> col, Value.Date(DateTimeOffset.Parse(value, ddmm))
           | Date c -> col, Value.Date(DateTimeOffset.Parse(value, c))
           | OneZero | Bool -> 
@@ -397,7 +397,7 @@ let readCsvFile (data:string) =
 let serializeValue = function 
   | Value.String s -> JsonValue.String s 
   | Value.Bool b -> JsonValue.Boolean b
-  | Value.Number n -> JsonValue.Number n
+  | Value.Number n -> JsonValue.Float n
   | Value.Date d -> JsonValue.String (d.ToString "o")
 
 let serialize isPreview isSeries data = 
