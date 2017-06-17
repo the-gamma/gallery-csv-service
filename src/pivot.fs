@@ -50,6 +50,7 @@ type RelationalOperator =
   | LessThan
   | GreaterThan 
   | InRange
+  | Like
 
 type FilterCondition = RelationalOperator * string * string
 
@@ -114,7 +115,7 @@ module Transform =
     | _ -> GetTheData, false
 
   let operators = 
-    [ Equals, " eq "; NotEquals, " neq "; LessThan, " lte "; GreaterThan, " gte "; InRange, " in " ]
+    [ Equals, " eq "; NotEquals, " neq "; LessThan, " lte "; GreaterThan, " gte "; InRange, " in "; Like, " like " ]
 
   let parseCondition (cond:string) = 
     let cond = cond.Trim()
@@ -246,6 +247,8 @@ let compareFields o1 o2 (fld, order) =
 
 let evalCondition op actual (expected:string) =
   match op, actual with 
+  | Like, String s -> s.ToLower().Contains(expected.ToLower())
+  | Like, _ -> failwith "Like can only be used on strings"
   | _, Date _ -> failwith "Comparison on dates not supported"
   | Equals, Bool b -> (expected.ToLower() = "true" && b) || (expected.ToLower() = "false" && not b)
   | NotEquals, Bool b -> (expected.ToLower() = "true" && not b) || (expected.ToLower() = "false" && b)
