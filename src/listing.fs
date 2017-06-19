@@ -16,7 +16,7 @@ let getTagId (s:string) =
   loop (System.Text.StringBuilder()) true 0
 
 let handleRequest root (files:UploadedCsvFile[]) = 
-  let files = files |> Seq.filter (fun f -> not f.hidden)
+  let files = files |> Seq.filter (fun f -> not f.hidden) 
   let tags = files |> Seq.collect (fun f -> f.tags) |> Seq.map (fun t -> getTagId t, t) |> dict
   let dates = files |> Seq.map (fun f -> f.date.Year, f.date.Month) |> Seq.distinct |> Seq.sort
   choose [
