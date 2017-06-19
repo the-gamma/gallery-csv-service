@@ -3,7 +3,7 @@
 #r "../packages/FSharp.Data/lib/net40/FSharp.Data.dll"
 #r "../packages/Newtonsoft.Json/lib/net40/Newtonsoft.Json.dll"
 #load "../packages/FSharp.Azure.StorageTypeProvider/StorageTypeProvider.fsx"
-#load "config.fs" "common/serializer.fs" "pivot.fs" "storage.fs" "listing.fs" 
+#load "config.fs" "common/serializer.fs" "pivot.fs" "storage.fs" "listing.fs" "data.fs" 
 #else
 module Gallery.App
 #endif
@@ -22,7 +22,7 @@ open Gallery.CsvService
 // --------------------------------------------------------------------------------------
 
 #if INTERACTIVE
-let root = "https://localhost:8897"
+let root = "http://localhost:8897"
 #else
 let root = "https://gallery-csv-service.azurewebsites.net"
 #endif
@@ -30,10 +30,10 @@ let root = "https://gallery-csv-service.azurewebsites.net"
 let app =
   choose [
     GET >=> path "/" >=> Successful.OK "Service is running..." 
-    POST >=> path "/update" >=> Storage.updateRecord
-    POST >=> path "/upload" >=> Storage.uploadFile
+    POST >=> path "/update" >=> Storage.Uploads.updateRecord
+    POST >=> path "/upload" >=> Storage.Uploads.uploadFile
     GET >=> path "/tags" >=> request (fun _ ctx -> async {
-        let! files = Storage.getRecords ()
+        let! files = Storage.Uploads.getRecords ()
         let tags = 
           files 
           |> Seq.collect (fun f -> f.tags) 
@@ -43,14 +43,16 @@ let app =
           |> JsonValue.Array
         return! Successful.OK (tags.ToString()) ctx })
     setHeader  "Access-Control-Allow-Origin" "*"
-    >=> setHeader "Access-Control-Allow-Headers" "content-type"
+    >=> setHeader "Access-Control-Allow-Headers" "content-type,x-cookie"
     >=> choose [
       OPTIONS >=> Successful.OK "CORS approved"
+      GET >=> pathScan "/providers/data%s" (fun s -> 
+        DataProviders.handleRequest root)
       GET >=> pathScan "/providers/listing%s" (fun _ ctx -> async { 
-        let! files = Storage.getRecords ()
+        let! files = Storage.Uploads.getRecords ()
         return! Listing.handleRequest root files ctx })
       GET >=> pathScan "/providers/csv/%s" (fun source ctx -> async {
-        let! file = Storage.fetchFile source
+        let! file = Storage.Uploads.fetchFile source
         match file with 
         | None -> return! RequestErrors.BAD_REQUEST (sprintf "File with id '%s' does not exist!" source) ctx
         | Some (meta, data) -> return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }) ]

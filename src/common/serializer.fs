@@ -20,8 +20,15 @@ type Result =
   | Provider of kind:string * endpoint:string
   | Nested of endpoint:string
 
+type Parameter = 
+  | Parameter of name:string * typ:Type * optional:bool * kind:ParameterKind
+
+and ParameterKind = 
+  | Static of cookieName:string
+  | Dynamic of traceKey:string
+
 type Member = 
-  | Property of name:string * returns:Result * trace:seq<string>
+  | Member of name:string * pars:Parameter list option * returns:Result * trace:seq<string>
 
 module Serializer = 
   let rec serializeType = function
@@ -59,11 +66,24 @@ module Serializer =
            "endpoint", JsonValue.String e |]
         |> JsonValue.Record
 
-  let serializeMember = function
-    | Property(n, r, t) ->
+  let serializeParameter = function
+    | Parameter(n, t, o, k) ->
         [| "name", JsonValue.String n
-           "returns", serializeResult r
-           "trace", JsonValue.Array [| for s in t -> JsonValue.String s |] |] 
+           "optional", JsonValue.Boolean o
+           "kind", JsonValue.String (match k with Static _ -> "static" | Dynamic _ -> "dynamic")
+           ( match k with Static ck -> "cookie" , JsonValue.String ck | Dynamic tk -> "trace", JsonValue.String tk )
+           "type", serializeType t |]
+        |> JsonValue.Record
+
+      
+  let serializeMember = function
+    | Member(n, pars, r, t) ->
+        [| yield "name", JsonValue.String n
+           yield "returns", serializeResult r
+           match pars with
+           | Some pars -> yield "parameters", JsonValue.Array (Array.map serializeParameter (Array.ofSeq pars))
+           | _ -> ()
+           yield "trace", JsonValue.Array [| for s in t -> JsonValue.String s |] |] 
         |> JsonValue.Record
 
   let returnMembers members = 
