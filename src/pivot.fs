@@ -430,7 +430,7 @@ let handleRequest meta source query =
   let source = source |> Seq.ofArray
   let preview, query = query |> List.partition ((=) "preview")
   let isPreview = not (List.isEmpty preview)
-  let query = query |> List.head |> Transform.fromUrl
+  let query = (match query with x::_ -> x | _ -> "") |> Transform.fromUrl
   let res = query.Transformations |> List.fold transformData source |> Array.ofSeq
   let json = applyAction isPreview meta res query.Action
   Successful.OK (json.ToString())  

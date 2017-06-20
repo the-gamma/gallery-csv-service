@@ -26,7 +26,7 @@ let handleRequest root (files:UploadedCsvFile[]) =
         Member.Member("by tag", None, Result.Nested("tag/"), [])
       ])
     path "/providers/listing/date/" >=> request (fun r ->
-      Serializer.returnMembers [        
+      Serializer.returnMembers [
         for y, m in dates ->
           let name = System.Globalization.DateTimeFormatInfo.InvariantInfo.GetMonthName(m)
           Member.Member(name + " " + string y, None, Result.Nested("date/" + string y + "-" + string m + "/"), [])
