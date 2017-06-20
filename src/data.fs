@@ -6,6 +6,7 @@ open Suave.Filters
 open Suave.Operators
 open Gallery.CsvService
 open Gallery.CsvService.Storage
+open WebScrape.DataProviders
 
 let xcookie f ctx = async {
   match ctx.request.headers |> Seq.tryFind (fun (h, _) -> h.ToLower() = "x-cookie") with
@@ -18,8 +19,11 @@ let xcookie f ctx = async {
 let handleRequest root =
   choose [
     path "/providers/data/" >=> request (fun r ->
+      let csv = WebScrape.DataProviders.getCSVTree "https://en.wikipedia.org/wiki/2015_in_the_United_Kingdom"
+      printfn "%A" csv
       Serializer.returnMembers [
-        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [])
+        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), []);
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [])
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
@@ -42,5 +46,11 @@ let handleRequest root =
       | Some(meta, data) ->
           return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }
     )
+
+    path "/providers/data/scrape/%s" >=> xcookie (fun ck ctx -> async {
+      WebScrape.DataProviders.getCSVTree ck.["url"]
+      return! RequestErrors.BAD_REQUEST "Bad Request" ctx}
+    )
+      
   ]
 

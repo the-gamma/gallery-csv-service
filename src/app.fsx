@@ -3,7 +3,7 @@
 #r "../packages/FSharp.Data/lib/net40/FSharp.Data.dll"
 #r "../packages/Newtonsoft.Json/lib/net40/Newtonsoft.Json.dll"
 #load "../packages/FSharp.Azure.StorageTypeProvider/StorageTypeProvider.fsx"
-#load "config.fs" "common/serializer.fs" "pivot.fs" "storage.fs" "listing.fs" "data.fs" 
+#load "config.fs" "common/serializer.fs" "common/webscrape.fs" "pivot.fs" "storage.fs" "listing.fs" "data.fs" 
 #else
 module Gallery.App
 #endif
@@ -16,7 +16,7 @@ open Suave.Writers
 open Suave.Operators
 open FSharp.Data
 open Gallery.CsvService
-
+open WebScrape.DataProviders
 // --------------------------------------------------------------------------------------
 // Server with /upload endpoint and /csv for Pivot type provider
 // --------------------------------------------------------------------------------------
