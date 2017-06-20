@@ -19,10 +19,8 @@ let xcookie f ctx = async {
 let handleRequest root =
   choose [
     path "/providers/data/" >=> request (fun r ->
-      let csv = WebScrape.DataProviders.getCSVTree "https://en.wikipedia.org/wiki/2015_in_the_United_Kingdom"
-      printfn "%A" csv
       Serializer.returnMembers [
-        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), []);
+        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [])
         Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [])
       ])
 
@@ -40,6 +38,7 @@ let handleRequest root =
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
+      // printfn "%A" file
       match file with 
       | None ->
           return! RequestErrors.BAD_REQUEST "File has not been uploaded." ctx
@@ -47,10 +46,16 @@ let handleRequest root =
           return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }
     )
 
-    path "/providers/data/scrape/%s" >=> xcookie (fun ck ctx -> async {
-      WebScrape.DataProviders.getCSVTree ck.["url"]
-      return! RequestErrors.BAD_REQUEST "Bad Request" ctx}
-    )
+    path "/providers/data/scrape" >=> xcookie (fun ck ctx -> async {
+      let url = ck.["url"]
+      let csv = WebScrape.DataProviders.getCSVTree url
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString())
+      match upload with 
+      | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
+      | Choice1Of2 id ->
+          return! ctx |> Serializer.returnMembers [
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+          ] })
       
   ]
 

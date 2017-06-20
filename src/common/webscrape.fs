@@ -35,6 +35,6 @@ let getCSVTree url =
     [ for row in resCtx.Rows -> Demo.Row(row.[0], row.[1], row.[2]) ]
     |> Demo.GetSample().Append
 
-  csv.Save("/Users/myong/Documents/workspace/thegamma-wiki/data/2015_Parsed.csv")
+  // csv.Save("/Users/myong/Documents/workspace/thegamma-wiki/data/2015_Parsed.csv")
   csv
 // getCSVTree "https://en.wikipedia.org/wiki/2015_in_the_United_Kingdom"
