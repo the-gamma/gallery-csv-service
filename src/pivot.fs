@@ -339,10 +339,10 @@ let typeName = function
 
 let unifyTypes t1 t2 = 
   match t1, t2 with
+  | _ when t1 = t2 -> t1
   | Any, t | t, Any -> t
   | Date c, Date null | Date null, Date c -> Date c
   | Date c1, Date c2 when c1 = c2 -> Date c1
-  | Number, Number -> Number
   | Bool, OneZero | OneZero, Bool -> Bool
   | Number, OneZero | OneZero, Number -> Number
   | _ -> String
