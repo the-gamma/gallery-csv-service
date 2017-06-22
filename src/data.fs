@@ -6,7 +6,11 @@ open Suave.Filters
 open Suave.Operators
 open Gallery.CsvService
 open Gallery.CsvService.Storage
+<<<<<<< HEAD
 open FSharp.Data
+=======
+open WebScrape.DataProviders
+>>>>>>> origin/wiki-dev
 
 let xcookie f ctx = async {
   match ctx.request.headers |> Seq.tryFind (fun (h, _) -> h.ToLower() = "x-cookie") with
@@ -21,6 +25,7 @@ let handleRequest root =
     path "/providers/data/" >=> request (fun r ->
       Serializer.returnMembers [
         Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], None)
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [])
         Member("test", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/test"), [], None)
       ])
 
@@ -46,11 +51,24 @@ let handleRequest root =
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
+      // printfn "%A" file
       match file with 
       | None ->
           return! RequestErrors.BAD_REQUEST "File has not been uploaded." ctx
       | Some(meta, data) ->
           return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }
     )
+
+    path "/providers/data/scrape" >=> xcookie (fun ck ctx -> async {
+      let url = ck.["url"]
+      let csv = WebScrape.DataProviders.getCSVTree url
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString())
+      match upload with 
+      | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
+      | Choice1Of2 id ->
+          return! ctx |> Serializer.returnMembers [
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+          ] })
+      
   ]
 
