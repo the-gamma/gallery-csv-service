@@ -6,6 +6,7 @@ open Suave.Filters
 open Suave.Operators
 open Gallery.CsvService
 open Gallery.CsvService.Storage
+open FSharp.Data
 open WebScrape.DataProviders
 
 let xcookie f ctx = async {
@@ -20,8 +21,8 @@ let handleRequest root =
   choose [
     path "/providers/data/" >=> request (fun r ->
       Serializer.returnMembers [
-        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [])
-        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [])
+        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [], [])
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
@@ -33,12 +34,11 @@ let handleRequest root =
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
           return! ctx |> Serializer.returnMembers [
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
-      // printfn "%A" file
       match file with 
       | None ->
           return! RequestErrors.BAD_REQUEST "File has not been uploaded." ctx
@@ -53,8 +53,12 @@ let handleRequest root =
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
+          let sch = 
+            [ Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
           return! ctx |> Serializer.returnMembers [
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+            Member("preview", None, Result.Nested("/null"), [], sch)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
       
   ]

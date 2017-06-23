@@ -184,7 +184,7 @@ module Cache =
   let sha256 = System.Security.Cryptography.SHA256.Create()
   let hash url = 
     Uri(url).Host.Replace(".", "-") + "-" +
-    ( sha256.ComputeHash(System.Text.UTF8Encoding.UTF8.GetBytes "aa") 
+    ( sha256.ComputeHash(System.Text.UTF8Encoding.UTF8.GetBytes url) 
       |> Seq.map (fun s -> s.ToString("x2"))
       |> String.concat "" )
 

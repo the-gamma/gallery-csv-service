@@ -311,7 +311,7 @@ let parseError s = raise (ParseError s)
 
 type InferredType =   
   | Any | String | Number 
-  | OneZero | Bool 
+  | Bool //| OneZero 
   | Date of System.Globalization.CultureInfo
 
 let tryDate culture s = 
@@ -323,8 +323,8 @@ let ddmm = System.Globalization.CultureInfo.GetCultureInfo("en-GB")
 let inferType (s:string) =
   if fst (Decimal.TryParse(s)) then 
     let d = Decimal.Parse(s)
-    if d = 1M || d = 0M then OneZero
-    else Number
+    //if d = 1M || d = 0M then OneZero else 
+    Number
   elif tryDate mmdd s && tryDate ddmm s then Date null
   elif tryDate mmdd s then Date mmdd
   elif tryDate ddmm s then Date ddmm
@@ -333,18 +333,18 @@ let inferType (s:string) =
 
 let typeName = function
   | String | Any -> "string"
-  | OneZero | Bool -> "bool"
+  (*| OneZero *)| Bool -> "bool"
   | Date _ -> "date"
   | Number -> "number"
 
 let unifyTypes t1 t2 = 
   match t1, t2 with
+  | _ when t1 = t2 -> t1
   | Any, t | t, Any -> t
   | Date c, Date null | Date null, Date c -> Date c
   | Date c1, Date c2 when c1 = c2 -> Date c1
-  | Number, Number -> Number
-  | Bool, OneZero | OneZero, Bool -> Bool
-  | Number, OneZero | OneZero, Number -> Number
+  //| Bool, OneZero | OneZero, Bool -> Bool
+  //| Number, OneZero | OneZero, Number -> Number
   | _ -> String
 
 let readCsvFile (data:string) =   
@@ -376,7 +376,8 @@ let readCsvFile (data:string) =
           | Number -> col, Value.Number(Double.Parse value)
           | Date null -> col, Value.Date(DateTimeOffset.Parse(value, ddmm))
           | Date c -> col, Value.Date(DateTimeOffset.Parse(value, c))
-          | OneZero | Bool -> 
+          (*| OneZero *)
+          | Bool -> 
               let b = 
                 if value.ToLower() = "true" then true
                 elif value.ToLower() = "false" then false
@@ -430,7 +431,7 @@ let handleRequest meta source query =
   let source = source |> Seq.ofArray
   let preview, query = query |> List.partition ((=) "preview")
   let isPreview = not (List.isEmpty preview)
-  let query = query |> List.head |> Transform.fromUrl
+  let query = (match query with x::_ -> x | _ -> "") |> Transform.fromUrl
   let res = query.Transformations |> List.fold transformData source |> Array.ofSeq
   let json = applyAction isPreview meta res query.Action
   Successful.OK (json.ToString())  
