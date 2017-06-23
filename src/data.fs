@@ -6,11 +6,8 @@ open Suave.Filters
 open Suave.Operators
 open Gallery.CsvService
 open Gallery.CsvService.Storage
-<<<<<<< HEAD
 open FSharp.Data
-=======
 open WebScrape.DataProviders
->>>>>>> origin/wiki-dev
 
 let xcookie f ctx = async {
   match ctx.request.headers |> Seq.tryFind (fun (h, _) -> h.ToLower() = "x-cookie") with
@@ -25,16 +22,7 @@ let handleRequest root =
     path "/providers/data/" >=> request (fun r ->
       Serializer.returnMembers [
         Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], None)
-        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [])
-        Member("test", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/test"), [], None)
-      ])
-
-    path "/providers/data/test" >=> xcookie (fun ck -> 
-      let url = ck.["url"]
-      Serializer.returnMembers [
-        ( let sch = Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
-          Member("preview", None, Result.Nested("/null"), [], Some sch) )
-        Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/raw-githubusercontent-com-961b6dd3ede3cb8ecbaacbd68de040cd78eb2ed5889130cceb4c49268ea4d506"), [], None) 
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [], None)
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
@@ -51,7 +39,6 @@ let handleRequest root =
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
-      // printfn "%A" file
       match file with 
       | None ->
           return! RequestErrors.BAD_REQUEST "File has not been uploaded." ctx
@@ -66,8 +53,10 @@ let handleRequest root =
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
+          let sch = Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
           return! ctx |> Serializer.returnMembers [
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+            Member("preview", None, Result.Nested("/null"), [], Some sch)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], None)
           ] })
       
   ]
