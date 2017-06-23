@@ -22,30 +22,30 @@ let handleRequest root (files:UploadedCsvFile[]) =
   choose [
     path "/providers/listing/" >=> request (fun r ->
       Serializer.returnMembers [        
-        Member.Member("by date", None, Result.Nested("date/"), [], None)
-        Member.Member("by tag", None, Result.Nested("tag/"), [], None)
+        Member.Member("by date", None, Result.Nested("date/"), [], [])
+        Member.Member("by tag", None, Result.Nested("tag/"), [], [])
       ])
     path "/providers/listing/date/" >=> request (fun r ->
       Serializer.returnMembers [
         for y, m in dates ->
           let name = System.Globalization.DateTimeFormatInfo.InvariantInfo.GetMonthName(m)
-          Member.Member(name + " " + string y, None, Result.Nested("date/" + string y + "-" + string m + "/"), [], None)
+          Member.Member(name + " " + string y, None, Result.Nested("date/" + string y + "-" + string m + "/"), [], [])
       ])
     path "/providers/listing/tag/" >=> request (fun r ->
       Serializer.returnMembers [        
         for (KeyValue(tid, t)) in tags ->
-          Member.Member(t, None, Result.Nested("tag/" + tid + "/"), [], None)
+          Member.Member(t, None, Result.Nested("tag/" + tid + "/"), [], [])
       ])
     pathScan "/providers/listing/date/%d-%d/" (fun (y, m) ->
       Serializer.returnMembers [
         for file in files do
           let show = file.date.Year = y && file.date.Month = m
-          if show then yield Member.Member(file.title, None, Result.Provider("pivot", root + "/providers/csv/" + file.id), [], None)
+          if show then yield Member.Member(file.title, None, Result.Provider("pivot", root + "/providers/csv/" + file.id), [], [])
       ])
     pathScan "/providers/listing/tag/%s/" (fun tid ->
       Serializer.returnMembers [
         for file in files do
           let show = file.tags |> Seq.exists (fun t -> getTagId t = tid)
-          if show then yield Member.Member(file.title, None, Result.Provider("pivot", root + "/providers/csv/" + file.id), [], None)
+          if show then yield Member.Member(file.title, None, Result.Provider("pivot", root + "/providers/csv/" + file.id), [], [])
       ])
   ]

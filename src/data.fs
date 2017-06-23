@@ -21,8 +21,8 @@ let handleRequest root =
   choose [
     path "/providers/data/" >=> request (fun r ->
       Serializer.returnMembers [
-        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], None)
-        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [], None)
+        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [], [])
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
@@ -34,7 +34,7 @@ let handleRequest root =
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
           return! ctx |> Serializer.returnMembers [
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], None)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
@@ -53,10 +53,12 @@ let handleRequest root =
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
-          let sch = Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+          let sch = 
+            [ Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
           return! ctx |> Serializer.returnMembers [
-            Member("preview", None, Result.Nested("/null"), [], Some sch)
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], None)
+            Member("preview", None, Result.Nested("/null"), [], sch)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
       
   ]

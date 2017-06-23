@@ -31,7 +31,7 @@ type Schema =
   | Schema of context:string * typ:string * props:(string * JsonValue) list
 
 type Member = 
-  | Member of name:string * pars:Parameter list option * returns:Result * trace:seq<string> * schema:Schema option
+  | Member of name:string * pars:Parameter list option * returns:Result * trace:seq<string> * schema:Schema list
 
 module Serializer = 
   let rec serializeType = function
@@ -87,13 +87,14 @@ module Serializer =
            | Some pars -> yield "parameters", JsonValue.Array (Array.map serializeParameter (Array.ofSeq pars))
            | _ -> ()
            match schem with 
-           | Some(Schema(ctx, typ, props)) -> 
-              let props = 
-                [| yield "@context", JsonValue.String ctx
-                   yield "@type", JsonValue.String typ
-                   yield! props |]
-              yield "schema", JsonValue.Record props
-           | _ -> ()
+           | [] -> ()
+           | _ ->
+              let schemas = schem |> Seq.map (fun (Schema(ctx, typ, props)) -> 
+                JsonValue.Record
+                  [| yield "@context", JsonValue.String ctx
+                     yield "@type", JsonValue.String typ
+                     yield! props |]) |> Array.ofSeq
+              yield "schema", JsonValue.Array schemas
            yield "trace", JsonValue.Array [| for s in t -> JsonValue.String s |] |] 
         |> JsonValue.Record
 
