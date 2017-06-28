@@ -58,7 +58,7 @@ let readMetadata<'T> container =
     let blob = container.GetBlockBlobReference("files.json")
     if blob.Exists() then 
       blob.DownloadText(System.Text.Encoding.UTF8) |> fromJson<'T[]> 
-    else failwith "Blob 'files.json' does not exist."
+    else [||]
   else failwith "Container 'uploads' not found" 
 
 let writeMetadata container (files:'T[]) = 
@@ -191,11 +191,11 @@ module Cache =
   let fetchFile id = 
     cache.PostAndAsyncReply(fun ch -> FetchFile(id, ch))
 
-  let uploadFile url data = async { 
+  let uploadFile url data kind = async { 
     try 
       ignore (readCsvFile data) 
-      let mkmeta _ = { id = hash url; url = url }
+      let mkmeta _ = { id = ((hash url)+kind); url = url ;}
       let! file = cache.PostAndAsyncReply(fun ch -> UploadFile(mkmeta, data, ch))
-      return Choice1Of2 (hash url)
+      return Choice1Of2 ((hash url)+kind)
     with ParseError msg -> 
       return Choice2Of2(msg) }

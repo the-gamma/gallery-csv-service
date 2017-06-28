@@ -21,15 +21,16 @@ let handleRequest root =
   choose [
     path "/providers/data/" >=> request (fun r ->
       Serializer.returnMembers [
-        Member("load", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
-        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/scrape"), [], [])
+        Member("loadTable", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
+        Member("scrapeLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
+        Member("scrapeDatedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [])
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
       use wc = new System.Net.WebClient()
       let url = ck.["url"]
       let! file = wc.AsyncDownloadString(Uri(url))
-      let! upload = Storage.Cache.uploadFile url file 
+      let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
@@ -46,10 +47,27 @@ let handleRequest root =
           return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }
     )
 
-    path "/providers/data/scrape" >=> xcookie (fun ck ctx -> async {
+    path "/providers/data/scrapeFrom" >=> request (fun r -> 
+      Serializer.returnMembers [
+        Member("allLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [])
+        Member("datedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [])
+      ])
+
+    path "/providers/data/getAllEntries" >=> xcookie (fun ck ctx -> async {
       let url = ck.["url"]
-      let csv = WebScrape.DataProviders.getCSVTree url
-      let! upload = Storage.Cache.uploadFile url (csv.SaveToString())
+      let csv = WebScrape.DataProviders.getAllEntries url
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) "allEntries"
+      match upload with 
+      | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
+      | Choice1Of2 id ->
+          return! ctx |> Serializer.returnMembers [
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+          ] })
+    
+    path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
+      let url = ck.["url"]
+      let csv = WebScrape.DataProviders.getDatedEntries url
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) "datedEntries"
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
@@ -60,6 +78,4 @@ let handleRequest root =
             Member("preview", None, Result.Nested("/null"), [], sch)
             Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
-      
   ]
-
