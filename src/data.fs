@@ -23,7 +23,9 @@ let handleRequest root =
       Serializer.returnMembers [
         Member("loadTable", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
         Member("scrapeLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
-        Member("scrapeDatedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [])
+        Member("scrapeDatedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [], [])
+        // TODO: This is obsolete, but used in some gallery snippets
+        Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
       ])
 
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
@@ -49,8 +51,8 @@ let handleRequest root =
 
     path "/providers/data/scrapeFrom" >=> request (fun r -> 
       Serializer.returnMembers [
-        Member("allLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [])
-        Member("datedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [])
+        Member("allLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
+        Member("datedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [], [])
       ])
 
     path "/providers/data/getAllEntries" >=> xcookie (fun ck ctx -> async {
@@ -61,7 +63,7 @@ let handleRequest root =
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
           return! ctx |> Serializer.returnMembers [
-            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [])
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
     
     path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
