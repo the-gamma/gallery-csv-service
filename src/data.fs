@@ -36,7 +36,11 @@ let handleRequest root =
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
+          let sch = 
+            [ Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
           return! ctx |> Serializer.returnMembers [
+            Member("preview", None, Result.Nested("/null"), [], sch)
             Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
 
@@ -49,12 +53,6 @@ let handleRequest root =
           return! Pivot.handleRequest meta data (List.map fst ctx.request.query) ctx }
     )
 
-    path "/providers/data/scrapeFrom" >=> request (fun r -> 
-      Serializer.returnMembers [
-        Member("allLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
-        Member("datedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [], [])
-      ])
-
     path "/providers/data/getAllEntries" >=> xcookie (fun ck ctx -> async {
       let url = ck.["url"]
       let csv = WebScrape.DataProviders.getAllEntries url
@@ -62,7 +60,11 @@ let handleRequest root =
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
+          let sch = 
+            [ Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
           return! ctx |> Serializer.returnMembers [
+            Member("preview", None, Result.Nested("/null"), [], sch)
             Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
     
