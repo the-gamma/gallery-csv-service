@@ -196,7 +196,6 @@ module Cache =
       ignore (readCsvFile data) 
       let mkmeta _ = { id = ((hash url)+kind); url = url ;}
       let! file = cache.PostAndAsyncReply(fun ch -> UploadFile(mkmeta, data, ch))
-      printfn "uploaded: %A" file
       return Choice1Of2 ((hash url)+kind)
     with ParseError msg -> 
       return Choice2Of2(msg) }

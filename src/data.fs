@@ -40,7 +40,6 @@ let handleRequest root =
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
-      printfn "File: %A" file
       match file with 
       | None ->
           return! RequestErrors.BAD_REQUEST "File has not been uploaded." ctx
@@ -67,10 +66,8 @@ let handleRequest root =
     
     path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
       let url = ck.["url"]
-      printfn "URL: %s" url
       let csv = WebScrape.DataProviders.getDatedEntries url
       let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) "datedEntries"
-      printfn "upload: %A" upload
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
