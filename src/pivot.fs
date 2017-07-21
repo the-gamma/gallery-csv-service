@@ -249,7 +249,20 @@ let evalCondition op actual (expected:string) =
   match op, actual with 
   | Like, String s -> s.ToLower().Contains(expected.ToLower())
   | Like, _ -> failwith "Like can only be used on strings"
-  | _, Date _ -> failwith "Comparison on dates not supported"
+  | InRange, Date dt ->
+      let exp = expected.Split(',') 
+      match System.DateTimeOffset.TryParse(exp.[0]), System.DateTimeOffset.TryParse(exp.[1]) with
+      | (true, dt1), (true, dt2) -> dt >= dt1 && dt <= dt2
+      | _ -> failwithf "Value '%s' is not a valid date or time rnge." expected
+  | _, Date dt1 -> 
+      match System.DateTimeOffset.TryParse(expected), op with
+      | (false, _), _ -> failwithf "Value '%s' is not a valid date or time." expected
+      | (_, dt2), Equals -> dt1 = dt2
+      | (_, dt2), NotEquals -> dt1 <> dt2
+      | (_, dt2), LessThan -> dt1 < dt2
+      | (_, dt2), GreaterThan -> dt1 > dt2
+      | (_, dt2), InRange -> failwith "evalCondition: Unexpected InRnge"
+      | (_, dt2), Like -> failwith "evalCondition: Unexpected Like"
   | Equals, Bool b -> (expected.ToLower() = "true" && b) || (expected.ToLower() = "false" && not b)
   | NotEquals, Bool b -> (expected.ToLower() = "true" && not b) || (expected.ToLower() = "false" && b)
   | Equals, String s -> expected = s
@@ -257,7 +270,7 @@ let evalCondition op actual (expected:string) =
   | (Equals | NotEquals), Number _ -> failwith "Equals and not equals work only on strings or booleans"
   | GreaterThan, Number n -> n > float expected
   | LessThan, Number n -> n < float expected
-  | InRange, Number n -> let expected = expected.Split(',') in n > float expected.[0] && n < float expected.[1]
+  | InRange, Number n -> let expected = expected.Split(',') in n >= float expected.[0] && n <= float expected.[1]
   | (GreaterThan | LessThan | InRange), (Bool _ | String _) -> failwith "Relational operator work only on numbers"
 
 let transformData (objs:seq<(string * Value)[]>) = function
