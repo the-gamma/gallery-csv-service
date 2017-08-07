@@ -103,7 +103,7 @@ let createCacheAgent<'T> container getId getPass : MailboxProcessor<Message<'T>>
 
       | Some(UploadFile(createMeta, data, repl)) ->
           let meta = Seq.initInfinite (generateId DateTime.Today) |> Seq.filter (files.ContainsKey >> not) |> Seq.head |> createMeta
-          if files.ContainsKey (getId meta) then repl.Reply(files.[getId meta]) else
+          if files.ContainsKey (getId meta) then files.Remove(getId meta) |> ignore // repl.Reply(files.[getId meta]) else
           let csv = uploadCsv container (getId meta) data |> createMeta
           files.Add(getId csv, csv)
           writeMetadata container (Array.ofSeq files.Values)

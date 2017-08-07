@@ -23,7 +23,11 @@ let handleRequest root =
       Serializer.returnMembers [
         Member("loadTable", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/upload"), [], [])
         Member("scrapeLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
-        Member("scrapeDatedLists", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getDatedEntries"), [], [])
+        Member("scrapeDatedLists", 
+          Some [
+            Parameter("url", Type.Named("string"), false, ParameterKind.Static("url")); 
+            Parameter("year", Type.Named("int"), false, ParameterKind.Static("year"))], 
+          Result.Nested("/getDatedEntries"), [], [])
         // TODO: This is obsolete, but used in some gallery snippets
         Member("scrape", Some [Parameter("url", Type.Named("string"), false, ParameterKind.Static("url"))], Result.Nested("/getAllEntries"), [], [])
       ])
@@ -70,8 +74,9 @@ let handleRequest root =
     
     path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
       let url = ck.["url"]
-      let csv = WebScrape.DataProviders.getDatedEntries url
-      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) "datedEntries"
+      let year = ck.["year"]
+      let csv = WebScrape.DataProviders.getDatedEntries year url
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("datedEntries-" + string year)
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
