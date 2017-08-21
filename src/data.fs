@@ -13,7 +13,7 @@ let xcookie f ctx = async {
   match ctx.request.headers |> Seq.tryFind (fun (h, _) -> h.ToLower() = "x-cookie") with
   | Some(_, v) -> 
       let cks = v.Split([|"&"|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun k -> 
-        match k.Split('=') with [|k;v|] -> k, v | _ -> failwith "Wrong cookie!") |> dict
+        match k.Split('=') with [|k;v|] -> k, System.Web.HttpUtility.UrlDecode v | _ -> failwith "Wrong cookie!") |> dict
       return! f cks ctx
   | _ -> return None }
 
@@ -41,8 +41,9 @@ let handleRequest root =
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
           let sch = 
-            [ Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
-              Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
+            // No preview for CSV files!
+            [ ] //Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              //Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
           return! ctx |> Serializer.returnMembers [
             Member("preview", None, Result.Nested("/null"), [], sch)
             Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
