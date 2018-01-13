@@ -373,7 +373,7 @@ let readCsvFile (data:string) =
 
   let meta = 
     file.Rows 
-    |> Seq.truncate 100
+    |> Seq.truncate 200
     |> Seq.map (fun r -> Array.map inferType r.Columns)
     |> Seq.reduce (Array.map2 unifyTypes)
     |> Seq.zip file.Headers.Value
