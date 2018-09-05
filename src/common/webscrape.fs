@@ -104,11 +104,12 @@ let splitString (str:string) =
 
 let getDated yyyy (entries:string[] list) = 
   entries |> List.collect (fun entry -> 
-    if (isDated entry.[2]) then
-      
+    if (isDated entry.[2]) then      
       let listOfWords = splitString entry.[2]
+      printfn "SPLIT STRING: %A" listOfWords
       let could1, option1 = System.Int32.TryParse(listOfWords.[0])
       if could1 then
+        printfn "Method 1"
         let dd = listOfWords.[0]
         let monthName = isMonth listOfWords.[1]
         match monthName with
@@ -120,14 +121,15 @@ let getDated yyyy (entries:string[] list) =
           if could then 
             [entry.[0], entryDate.ToString(), description]
           else 
-            // printfn "Error1: %A" entryDateString 
+            printfn "Error1: %A" entryDateString 
             []
         | None -> 
-            // printfn "Error2: %A" entry 
+            printfn "Error2: %A" entry 
             []
       else 
         let could2, option2 = System.Int32.TryParse(listOfWords.[1]) 
         if could2 then
+          printfn "Method 2"
           let dd = listOfWords.[1]
           let monthName = isMonth listOfWords.[0]
           match monthName with
@@ -139,16 +141,16 @@ let getDated yyyy (entries:string[] list) =
             if could then 
               [entry.[0], entryDate.ToString(), description]
             else 
-              // printfn "Error1: %A" entryDateString 
+              printfn "Error1: %A" entryDateString 
               []
           | None -> 
-              // printfn "Error2: %A" entry 
+              printfn "Error2: %A" entry 
               []
         else
-          // printfn "Error3: %A" entry  
+          printfn "Error3: %A" entry  
           []
     else 
-      // printfn "Error4: %A" entry  
+      printfn "Error4: %A" entry  
       []
   )
   
@@ -159,6 +161,3 @@ let getDatedEntries year (url:string) =
     [ for typ, dt, e in datedEntries -> ExploreDate.Row(typ, dt, Regex.replace "\[[0-9]+\]" "" e)]
     |> ExploreDate.GetSample().Append
   csv
-
-(getDatedEntries "2008" "https://en.wikipedia.org/wiki/2009_in_the_United_States?a").Rows
-|> Seq.length
