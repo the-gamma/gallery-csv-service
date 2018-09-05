@@ -148,9 +148,3 @@ let getDatedEntries year (url:string) =
     [ for typ, dt, e in datedEntries -> ExploreDate.Row(typ, dt, Regex.replace "\[[0-9]+\]" "" e)]
     |> ExploreDate.GetSample().Append
   csv
-
-(getDatedEntries "2009" "https://en.wikipedia.org/wiki/2009_in_the_United_States").Rows
-|> Seq.iter (printfn "%A")
-
-(getDatedEntries "2008" "https://en.wikipedia.org/wiki/2008_in_the_United_States").Rows
-|> Seq.iter (printfn "%A")

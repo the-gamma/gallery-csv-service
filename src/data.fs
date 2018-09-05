@@ -35,11 +35,8 @@ let handleRequest root =
     path "/providers/data/upload" >=> xcookie (fun ck ctx -> async {
       use wc = new System.Net.WebClient()
       let url = ck.["url"]
-      printfn "Downloading: %s" url
       let! file = wc.AsyncDownloadString(Uri(url))
-      printfn "Got data: %d" file.Length
       let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
-      printfn "Uploaded file: %A" upload
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
@@ -79,11 +76,8 @@ let handleRequest root =
     path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
       let url = ck.["url"]
       let year = ck.["year"]
-      printfn "Getting dated entries: %s" url
       let csv = WebScrape.DataProviders.getDatedEntries year url
-      printfn "Uploading file: %A" csv
-      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("datedEntries-" + string year)
-      printfn "Uploaded file"
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("fixed-datedEntries-" + string year)
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
       | Choice1Of2 id ->
