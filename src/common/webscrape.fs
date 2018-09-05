@@ -98,10 +98,8 @@ let getDated yyyy (entries:string[] list) =
   entries |> List.collect (fun entry -> 
     let listOfWords = splitString entry.[2]
     if Seq.length listOfWords >= 3 then
-      printfn "SPLIT STRING: %A" listOfWords
       let could1, option1 = System.Int32.TryParse(listOfWords.[0])
       if could1 then
-        printfn "Method 1"
         let dd = listOfWords.[0]
         let monthName = isMonth listOfWords.[1]
         match monthName with
@@ -113,15 +111,12 @@ let getDated yyyy (entries:string[] list) =
           if could then 
             [entry.[0], entryDate.ToString(), description]
           else 
-            printfn "Error1: %A" entryDateString 
             []
         | None -> 
-            printfn "Error2: %A" entry 
             []
       else 
         let could2, option2 = System.Int32.TryParse(listOfWords.[1]) 
         if could2 then
-          printfn "Method 2"
           let dd = listOfWords.[1]
           let monthName = isMonth listOfWords.[0]
           match monthName with
@@ -133,16 +128,12 @@ let getDated yyyy (entries:string[] list) =
             if could then 
               [entry.[0], entryDate.ToString(), description]
             else 
-              printfn "Error1: %A" entryDateString 
               []
           | None -> 
-              printfn "Error2: %A" entry 
               []
         else
-          printfn "Error3: %A" entry  
           []
     else 
-      printfn "Error4: %A" entry  
       []
   )
   
