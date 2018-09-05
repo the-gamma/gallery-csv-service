@@ -82,14 +82,6 @@ let isMonth (monthName:string) =
       None
     else Some(matchedMonth.[0]) 
 
-let isDated (entry: string) =
-  let listOfWords = entry.Split [| ' '; '–' |]
-  if (listOfWords.Length > 4) then 
-    let could, validDated = System.DateTime.TryParse(String.concat " " listOfWords.[0..1])
-    could  
-  else
-    false
-
 let splitString (str:string) = 
   let rec loop i acc parts = 
     let stringify chars = System.String(Array.ofSeq (List.rev chars))
@@ -104,8 +96,8 @@ let splitString (str:string) =
 
 let getDated yyyy (entries:string[] list) = 
   entries |> List.collect (fun entry -> 
-    if (isDated entry.[2]) then      
-      let listOfWords = splitString entry.[2]
+    let listOfWords = splitString entry.[2]
+    if Seq.length listOfWords >= 3 then
       printfn "SPLIT STRING: %A" listOfWords
       let could1, option1 = System.Int32.TryParse(listOfWords.[0])
       if could1 then
