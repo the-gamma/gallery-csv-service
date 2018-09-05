@@ -7,3 +7,5 @@ obj
 src/config.fs
 *.bak
 *.TMP
+.paket/Paket.Restore.targets
+paket-files/

@@ -36,6 +36,7 @@ let generateId (date:System.DateTime) i =
   sprintf "%s/file_%d.csv" (date.ToString("yyyy-MM-dd")) i
 
 let uploadCsv container id data =
+  printfn "upload CSV: %A %A (%d)" container id (Seq.length data)
   let container = createCloudBlobClient().GetContainerReference(container)
   if container.Exists() then
     let blob = container.GetBlockBlobReference(id)
@@ -45,6 +46,7 @@ let uploadCsv container id data =
   else failwith "Container 'uploads' not found"
 
 let downloadCsv container id =
+  printfn "download CSV: %A %A" container id
   let container = createCloudBlobClient().GetContainerReference(container)
   if container.Exists() then
     let blob = container.GetBlockBlobReference(id)
