@@ -143,7 +143,6 @@ let getDated yyyy (entries:string[] list) =
 let getDatedEntries year (url:string) =
   let resCtx = getWikiTree url
   let datedEntries = getDated year resCtx.Rows
-  resCtx.Rows |> Seq.iter (printfn "%A")
   let csv = 
     [ for typ, dt, e in datedEntries -> ExploreDate.Row(typ, dt, Regex.replace "\[[0-9]+\]" "" e)]
     |> ExploreDate.GetSample().Append
