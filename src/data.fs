@@ -78,7 +78,7 @@ let handleRequest root =
       let year = ck.["year"]
       let csv = WebScrape.DataProviders.getDatedEntries year url
       printfn "Got %d entries for %s" (Seq.length csv.Rows) url
-      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("dated-entries-" + string year)
+      let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("fixed-datedEntries-2-" + string year)
       printfn "Stored: %A" upload
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx

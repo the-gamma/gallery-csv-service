@@ -90,11 +90,23 @@ let isDated (entry: string) =
   else
     false
 
+let splitString (str:string) = 
+  let rec loop i acc parts = 
+    let stringify chars = System.String(Array.ofSeq (List.rev chars))
+    if i = str.Length then  
+      if List.isEmpty acc then parts else stringify acc::parts
+    elif Seq.length parts = 2 then 
+      let rest = str.[i..]
+      if List.isEmpty acc then rest::parts else rest::stringify acc::parts
+    elif Char.IsLetterOrDigit str.[i] then loop (i+1) (str.[i]::acc) parts
+    else loop (i+1) [] (stringify acc::parts)
+  loop 0 [] [] |> List.rev
 
 let getDated yyyy (entries:string[] list) = 
   entries |> List.collect (fun entry -> 
     if (isDated entry.[2]) then
-      let listOfWords = entry.[2].Split [|' '; '–' |]
+      
+      let listOfWords = splitString entry.[2]
       let could1, option1 = System.Int32.TryParse(listOfWords.[0])
       if could1 then
         let dd = listOfWords.[0]
@@ -102,7 +114,7 @@ let getDated yyyy (entries:string[] list) =
         match monthName with
         | Some x ->
           let mm = x
-          let description = listOfWords.[3..] |> String.concat " " 
+          let description = listOfWords.[2]
           let entryDateString = sprintf "%s/%s/%s" dd mm yyyy
           let could, entryDate = System.DateTime.TryParse(entryDateString)
           if could then 
@@ -121,7 +133,7 @@ let getDated yyyy (entries:string[] list) =
           match monthName with
           | Some x ->
             let mm = x
-            let description = listOfWords.[3..] |> String.concat " " 
+            let description = listOfWords.[2]
             let entryDateString = sprintf "%s/%s/%s" dd mm yyyy
             let could, entryDate = System.DateTime.TryParse(entryDateString)
             if could then 
@@ -147,3 +159,6 @@ let getDatedEntries year (url:string) =
     [ for typ, dt, e in datedEntries -> ExploreDate.Row(typ, dt, Regex.replace "\[[0-9]+\]" "" e)]
     |> ExploreDate.GetSample().Append
   csv
+
+(getDatedEntries "2008" "https://en.wikipedia.org/wiki/2009_in_the_United_States?a").Rows
+|> Seq.length
