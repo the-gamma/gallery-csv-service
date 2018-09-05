@@ -83,17 +83,18 @@ let isMonth (monthName:string) =
     else Some(matchedMonth.[0]) 
 
 let isDated (entry: string) =
-  let listOfWords = entry.Split(' ')
+  let listOfWords = entry.Split [| ' '; '–' |]
   if (listOfWords.Length > 4) then 
     let could, validDated = System.DateTime.TryParse(String.concat " " listOfWords.[0..1])
     could  
   else
     false
 
+
 let getDated yyyy (entries:string[] list) = 
-  let datedEntries = entries |> List.map (fun entry -> 
+  entries |> List.collect (fun entry -> 
     if (isDated entry.[2]) then
-      let listOfWords = entry.[2].Split(' ')
+      let listOfWords = entry.[2].Split [|' '; '–' |]
       let could1, option1 = System.Int32.TryParse(listOfWords.[0])
       if could1 then
         let dd = listOfWords.[0]
@@ -105,7 +106,7 @@ let getDated yyyy (entries:string[] list) =
           let entryDateString = sprintf "%s/%s/%s" dd mm yyyy
           let could, entryDate = System.DateTime.TryParse(entryDateString)
           if could then 
-            [entry.[0]; entryDate.ToString(); description]
+            [entry.[0], entryDate.ToString(), description]
           else 
             // printfn "Error1: %A" entryDateString 
             []
@@ -124,7 +125,7 @@ let getDated yyyy (entries:string[] list) =
             let entryDateString = sprintf "%s/%s/%s" dd mm yyyy
             let could, entryDate = System.DateTime.TryParse(entryDateString)
             if could then 
-              [entry.[0]; entryDate.ToString(); description]
+              [entry.[0], entryDate.ToString(), description]
             else 
               // printfn "Error1: %A" entryDateString 
               []
@@ -138,13 +139,18 @@ let getDated yyyy (entries:string[] list) =
       // printfn "Error4: %A" entry  
       []
   )
-  datedEntries
   
 let getDatedEntries year (url:string) =
   let resCtx = getWikiTree url
   let datedEntries = getDated year resCtx.Rows
-  let removedEmpties = datedEntries |> List.filter (fun entry -> not (List.isEmpty entry))
+  resCtx.Rows |> Seq.iter (printfn "%A")
   let csv = 
-    [ for entry in removedEmpties -> ExploreDate.Row(entry.[0], entry.[1], Regex.replace "\[[0-9]+\]" "" entry.[2])]
+    [ for typ, dt, e in datedEntries -> ExploreDate.Row(typ, dt, Regex.replace "\[[0-9]+\]" "" e)]
     |> ExploreDate.GetSample().Append
   csv
+
+(getDatedEntries "2009" "https://en.wikipedia.org/wiki/2009_in_the_United_States").Rows
+|> Seq.iter (printfn "%A")
+
+(getDatedEntries "2008" "https://en.wikipedia.org/wiki/2008_in_the_United_States").Rows
+|> Seq.iter (printfn "%A")

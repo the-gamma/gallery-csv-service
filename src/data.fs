@@ -77,11 +77,11 @@ let handleRequest root =
           ] })
     
     path "/providers/data/getDatedEntries" >=> xcookie (fun ck ctx -> async {
-      printfn "Getting dated entries"
       let url = ck.["url"]
       let year = ck.["year"]
+      printfn "Getting dated entries: %s" url
       let csv = WebScrape.DataProviders.getDatedEntries year url
-      printfn "Uploading file"
+      printfn "Uploading file: %A" csv
       let! upload = Storage.Cache.uploadFile url (csv.SaveToString()) ("datedEntries-" + string year)
       printfn "Uploaded file"
       match upload with 
