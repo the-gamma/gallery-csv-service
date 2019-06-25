@@ -49,6 +49,22 @@ let handleRequest root =
             Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
           ] })
 
+    pathScan "/providers/data/upload/%s" (fun url ctx -> async {
+      use wc = new System.Net.WebClient()
+      let! file = wc.AsyncDownloadString(Uri(url))
+      let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
+      match upload with 
+      | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
+      | Choice1Of2 id ->
+          let sch = 
+            // No preview for CSV files!
+            [ ] //Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              //Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
+          return! ctx |> Serializer.returnMembers [
+            Member("preview", None, Result.Nested("/null"), [], sch)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
+          ] })
+
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
       let! file = Storage.Cache.fetchFile id
       match file with 
