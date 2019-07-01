@@ -8,6 +8,7 @@ open Gallery.CsvService
 open Gallery.CsvService.Storage
 open FSharp.Data
 open WebScrape.DataProviders
+open System.Web
 
 let xcookie f ctx = async {
   match ctx.request.headers |> Seq.tryFind (fun (h, _) -> h.ToLower() = "x-cookie") with
@@ -51,7 +52,7 @@ let handleRequest root =
 
     pathScan "/providers/data/upload/%s" (fun url ctx -> async {
       use wc = new System.Net.WebClient()
-      let! file = wc.AsyncDownloadString(Uri(url))
+      let! file = wc.AsyncDownloadString(Uri(HttpUtility.UrlDecode(url)))
       let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
       match upload with 
       | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
