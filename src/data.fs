@@ -52,22 +52,21 @@ let handleRequest root =
 
     pathScan "/providers/data/upload/%s" (fun url ctx -> async {
       use wc = new System.Net.WebClient()
-      try
-        let! file = wc.AsyncDownloadString(Uri(HttpUtility.UrlDecode(url)))
-        let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
-        match upload with 
-        | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
-        | Choice1Of2 id ->
-            let sch = 
-              // No preview for CSV files!
-              [ ] //Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
-                //Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
-            return! ctx |> Serializer.returnMembers [
-              Member("preview", None, Result.Nested("/null"), [], sch)
-              Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
-            ] 
-        with e -> 
-          return! ServerErrors.INTERNAL_ERROR (sprintf "FAILED Url=%s.\nCONTEX: %A\n %s" url ctx (e.ToString())) ctx
+      let url = if url.StartsWith("http:/") && not (url.StartsWith("http://")) then url.Replace("http:/", "http://") else url
+      let url = if url.StartsWith("https:/") && not (url.StartsWith("https://")) then url.Replace("https:/", "https://") else url
+      let! file = wc.AsyncDownloadString(Uri(url))
+      let! upload = Storage.Cache.uploadFile url file "uploadedCSV"
+      match upload with 
+      | Choice2Of2 msg -> return! RequestErrors.BAD_REQUEST msg ctx
+      | Choice1Of2 id ->
+          let sch = 
+            // No preview for CSV files!
+            [ ] //Schema("http://schema.org", "WebPage", ["url", JsonValue.String url ])
+              //Schema("http://schema.thegamma.net", "CompletionItem", ["hidden", JsonValue.Boolean true ]) ]
+          return! ctx |> Serializer.returnMembers [
+            Member("preview", None, Result.Nested("/null"), [], sch)
+            Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
+          ] 
         })
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
