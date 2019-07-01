@@ -67,7 +67,7 @@ let handleRequest root =
               Member("explore", None, Result.Provider("pivot", root + "/providers/data/query/" + id), [], [])
             ] 
         with e -> 
-          return! ServerErrors.INTERNAL_ERROR (sprintf "FAILED Url=%s. %s" url (e.ToString())) ctx
+          return! ServerErrors.INTERNAL_ERROR (sprintf "FAILED Url=%s.\nCONTEX: %A\n %s" url ctx (e.ToString())) ctx
         })
 
     pathScan "/providers/data/query/%s" (fun id ctx -> async {
