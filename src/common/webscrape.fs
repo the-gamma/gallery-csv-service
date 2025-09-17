@@ -33,7 +33,7 @@ let getTree url =
   doc.Elements() |> Seq.fold visitElement emptyCtx 
 
 let getWikiTree url =
-  let page = Http.RequestString(url, responseEncodingOverride="UTF-8")
+  let page = Http.RequestString(url, responseEncodingOverride="UTF-8", headers=["User-Agent","TheGammaBot/0.0 (https://thegamma.net)"])
   let doc = HtmlDocument.Parse(page)
 
   let specialHeadings = set ["h2";"h3"]
